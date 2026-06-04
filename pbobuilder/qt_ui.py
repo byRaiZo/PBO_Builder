@@ -866,7 +866,7 @@ class ModernPboBuilderWindow(QMainWindow):
 
         self._build_ui()
         self._wire_events()
-        self.refresh_addon_list(select_saved=True)
+        self.refresh_addon_list()
         self.set_status(tr_text("ready", self.current_language), "ready")
         QTimer.singleShot(0, self.sync_addons_height)
 
@@ -1047,7 +1047,7 @@ class ModernPboBuilderWindow(QMainWindow):
         self._add_card_title(addons_layout, tr_text("addons", self.current_language))
 
         self.addon_list = QListWidget()
-        self.addon_list.setSelectionMode(QListWidget.MultiSelection)
+        self.addon_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         addons_layout.addWidget(self.addon_list, 1)
 
         addon_buttons = QHBoxLayout()
@@ -1124,6 +1124,7 @@ class ModernPboBuilderWindow(QMainWindow):
         self.refresh_button.clicked.connect(lambda: self.refresh_addon_list())
         self.select_all_button.clicked.connect(self.select_all_addons)
         self.select_none_button.clicked.connect(self.select_no_addons)
+        self.addon_list.itemChanged.connect(self.save_path_settings)
         self.build_button.clicked.connect(self.start_build)
         self.preflight_button.clicked.connect(self.start_preflight)
         self.clear_all_temp_button.clicked.connect(self.clear_full_temp_from_ui)
@@ -1196,43 +1197,41 @@ class ModernPboBuilderWindow(QMainWindow):
         selected = []
         for index in range(self.addon_list.count()):
             item = self.addon_list.item(index)
-            if item.isSelected():
+            if item.checkState() == Qt.CheckState.Checked:
                 selected.append(item.text())
         return selected
 
-    def refresh_addon_list(self, select_saved=False):
+    def refresh_addon_list(self):
         source_root = self.source_root_row.text()
         output_root = self.output_root_row.text()
         output_addons_dir = os.path.join(output_root, "Addons") if output_root else ""
         previous_selection = set(self.get_selected_addon_names())
-        saved_selection = set(self.saved_settings.get("selected_addons", [])) if select_saved else set()
+        self.addon_list.blockSignals(True)
         self.addon_list.clear()
         self.current_addon_targets = []
         if not source_root or not os.path.isdir(source_root):
+            self.addon_list.blockSignals(False)
             self.save_path_settings()
             return
         self.current_addon_targets = detect_addon_targets(source_root, output_addons_dir)
         names = [name for name, _ in self.current_addon_targets]
-        if saved_selection:
-            selection = saved_selection
-        elif previous_selection:
-            selection = previous_selection
-        else:
-            selection = set(names)
+        selection = previous_selection
         for name in names:
             item = QListWidgetItem(name)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked if name in selection else Qt.CheckState.Unchecked)
             self.addon_list.addItem(item)
-            if name in selection:
-                item.setSelected(True)
+        self.addon_list.blockSignals(False)
         self.save_path_settings()
 
     def select_all_addons(self):
         for index in range(self.addon_list.count()):
-            self.addon_list.item(index).setSelected(True)
+            self.addon_list.item(index).setCheckState(Qt.CheckState.Checked)
         self.save_path_settings()
 
     def select_no_addons(self):
-        self.addon_list.clearSelection()
+        for index in range(self.addon_list.count()):
+            self.addon_list.item(index).setCheckState(Qt.CheckState.Unchecked)
         self.save_path_settings()
 
     def save_path_settings(self):
