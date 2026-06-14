@@ -879,7 +879,7 @@ class ModernPboBuilderWindow(QMainWindow):
         asset_icon = Path(__file__).parent / "assets" / "icon.png"
         if asset_icon.is_file():
             return asset_icon
-        return Path(__file__).with_name(APP_ICON_FILE)
+        return Path(__file__).parent / APP_ICON_FILE
 
     def _build_ui(self):
         self.setStyleSheet(QT_STYLE)

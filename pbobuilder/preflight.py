@@ -1,19 +1,12 @@
-import fnmatch
-import glob
-import hashlib
 import json
 import os
 import re
-import shutil
-import struct
 import subprocess
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
 from .constants import *
-from .errors import BuildError
 from .filters import parse_exclude_patterns, should_skip_dir, should_skip_file
 from .system import get_hidden_startupinfo, get_subprocess_creationflags
 from .targets import format_duration, get_pbo_prefix, get_safe_temp_name, read_pbo_prefix_file

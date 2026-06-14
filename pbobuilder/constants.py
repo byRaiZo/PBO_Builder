@@ -29,7 +29,7 @@ Important:
 Never share your .biprivatekey.
 Only distribute the matching .bikey.
 """
-APP_ICON_FILE = "HEADONLY_SQUARE_2k.ico"
+APP_ICON_FILE = "assets/icon.ico"
 
 EXCLUDE_DIRS = {".git", ".svn", ".vscode", ".idea", "__pycache__"}
 EXCLUDE_FILES = {".gitignore", ".gitattributes", "thumbs.db", "desktop.ini", ".ds_store", "$prefix$", "$pboprefix$", "$prefix$.txt", "$pboprefix$.txt"}
