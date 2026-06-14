@@ -149,6 +149,8 @@ TRANSLATIONS = {
         "preflight_ok": "Preflight finished without errors or warnings.",
         "build_finished_message": "Build finished.",
         "build_running_status": "Build running...",
+        "build_progress_title": "PBO build",
+        "build_progress_message": "Build in progress...",
         "build_finished_status": "Build OK",
         "preflight_running_status": "Preflight running...",
         "preflight_finished_status": "Preflight OK",
@@ -263,6 +265,8 @@ TRANSLATIONS = {
         "preflight_ok": "Проверка завершилась без ошибок и предупреждений.",
         "build_finished_message": "Сборка завершена.",
         "build_running_status": "Сборка...",
+        "build_progress_title": "Сборка PBO",
+        "build_progress_message": "Сборка в процессе...",
         "build_finished_status": "Сборка OK",
         "preflight_running_status": "Проверка...",
         "preflight_finished_status": "Проверка OK",
@@ -378,6 +382,41 @@ class UpdateInstallWorker(QThread):
             self.started.emit()
         except Exception as error:
             self.failed.emit(str(error))
+
+
+class BuildProgressDialog(QDialog):
+    def __init__(self, parent=None, language=DEFAULT_LANGUAGE):
+        super().__init__(parent)
+        self._allow_close = False
+        self.setWindowTitle(tr_text("build_progress_title", language))
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+        self.setStyleSheet(QT_STYLE)
+        self.setFixedSize(320, 120)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+
+        label = QLabel(tr_text("build_progress_message", language))
+        label.setObjectName("DialogTitle")
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+
+        progress = QProgressBar()
+        progress.setRange(0, 0)
+        progress.setTextVisible(False)
+        layout.addWidget(progress)
+
+    def closeEvent(self, event):
+        if self._allow_close:
+            super().closeEvent(event)
+            return
+        event.ignore()
+
+    def finish(self):
+        self._allow_close = True
+        self.accept()
 
 
 class PathRow(QWidget):
@@ -898,6 +937,7 @@ class ModernPboBuilderWindow(QMainWindow):
         self.log_lines = []
         self.current_addon_targets = []
         self.is_building = False
+        self.build_progress_dialog = None
         self.current_language = normalize_language(self.saved_settings.get("language", DEFAULT_LANGUAGE))
 
         self.setWindowTitle(APP_TITLE)
@@ -1427,6 +1467,7 @@ class ModernPboBuilderWindow(QMainWindow):
         self.worker = BuildWorker("build", settings, parent=self)
         self._connect_worker()
         self.worker.start()
+        self._show_build_progress_dialog()
 
     def start_preflight(self):
         if self.is_building:
@@ -1518,6 +1559,7 @@ class ModernPboBuilderWindow(QMainWindow):
         self.set_status(tr_text("working_status", self.current_language, current=current, maximum=maximum), "building")
 
     def on_build_done(self):
+        self._close_build_progress_dialog()
         self._finish_worker(tr_text("build_finished_status", self.current_language), tr_text("build_finished_message", self.current_language), "success")
 
     def on_preflight_done(self, errors, warnings):
@@ -1534,6 +1576,7 @@ class ModernPboBuilderWindow(QMainWindow):
             QMessageBox.information(self, APP_TITLE, tr_text("preflight_ok", self.current_language))
 
     def on_worker_failed(self, message):
+        self._close_build_progress_dialog()
         self.log("")
         self.log(f"ERROR: {message}")
         self._set_running(False, tr_text("error_status", self.current_language), "error")
@@ -1546,6 +1589,18 @@ class ModernPboBuilderWindow(QMainWindow):
         self.progress.setValue(self.progress.maximum())
         self.close_current_log_file()
         QMessageBox.information(self, APP_TITLE, message)
+
+    def _show_build_progress_dialog(self):
+        self._close_build_progress_dialog()
+        self.build_progress_dialog = BuildProgressDialog(self, self.current_language)
+        self.build_progress_dialog.show()
+
+    def _close_build_progress_dialog(self):
+        if not self.build_progress_dialog:
+            return
+        self.build_progress_dialog.finish()
+        self.build_progress_dialog.deleteLater()
+        self.build_progress_dialog = None
 
     def _open_log(self, path):
         self.close_current_log_file()
