@@ -1,9 +1,9 @@
-('F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO Builder(byRaiZo)\\PBO '
+('F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO Builder(byRaiZo)\\PBO '
  'Builder(byRaiZo).exe',
  False,
  False,
  True,
- ['F:\\GitHub\\PBO Builder(byRaiZo)\\pbobuilder\\assets\\icon.ico'],
+ ['F:\\GitHub\\2_Programs\\PBO_Builder\\pbobuilder\\assets\\icon.ico'],
  None,
  False,
  False,
@@ -30,30 +30,31 @@
  None,
  None,
  None,
- 'F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO Builder(byRaiZo)\\PBO '
+ 'F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO Builder(byRaiZo)\\PBO '
  'Builder(byRaiZo).pkg',
  [('pyi-contents-directory _internal', '', 'OPTION'),
   ('PYZ-00.pyz',
-   'F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO Builder(byRaiZo)\\PYZ-00.pyz',
+   'F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO '
+   'Builder(byRaiZo)\\PYZ-00.pyz',
    'PYZ'),
   ('struct',
-   'F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO '
+   'F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO '
    'Builder(byRaiZo)\\localpycs\\struct.pyc',
    'PYMODULE'),
   ('pyimod01_archive',
-   'F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO '
+   'F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO '
    'Builder(byRaiZo)\\localpycs\\pyimod01_archive.pyc',
    'PYMODULE'),
   ('pyimod02_importers',
-   'F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO '
+   'F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO '
    'Builder(byRaiZo)\\localpycs\\pyimod02_importers.pyc',
    'PYMODULE'),
   ('pyimod03_ctypes',
-   'F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO '
+   'F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO '
    'Builder(byRaiZo)\\localpycs\\pyimod03_ctypes.pyc',
    'PYMODULE'),
   ('pyimod04_pywin32',
-   'F:\\GitHub\\PBO Builder(byRaiZo)\\build\\PBO '
+   'F:\\GitHub\\2_Programs\\PBO_Builder\\build\\PBO '
    'Builder(byRaiZo)\\localpycs\\pyimod04_pywin32.pyc',
    'PYMODULE'),
   ('pyiboot01_bootstrap',
@@ -68,11 +69,11 @@
   ('pyi_rth_pyside6',
    'C:\\Users\\RaiZo\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pyside6.py',
    'PYSOURCE'),
-  ('main', 'F:\\GitHub\\PBO Builder(byRaiZo)\\main.py', 'PYSOURCE')],
+  ('main', 'F:\\GitHub\\2_Programs\\PBO_Builder\\main.py', 'PYSOURCE')],
  [],
  False,
  False,
- 1780563292,
+ 1781458475,
  [('runw.exe',
    'C:\\Users\\RaiZo\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\runw.exe',
    'EXECUTABLE')],

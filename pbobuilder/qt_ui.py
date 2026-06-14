@@ -56,6 +56,7 @@ from .system import (
 )
 from .targets import detect_addon_targets
 from .tools import find_cfgconvert, find_dayz_binarize, find_dssignfile, find_p3d_obfuscator
+from .updater import check_for_update, install_update_and_restart
 
 
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -155,6 +156,11 @@ TRANSLATIONS = {
         "error_status": "Error",
         "preflight_log": "Preflight log",
         "build_log": "Build log",
+        "update_available_title": "Update available",
+        "update_available_message": "Version {version} is available.\n\nCurrent version: {current}\n\nInstall now?",
+        "update_installing_status": "Installing update...",
+        "update_started_message": "The update installer has started. The app will close now.",
+        "update_failed_message": "Update failed: {error}",
         "open_file": "Open file",
         "close": "Close",
         "cannot_clear_temp": "Cannot clear temp folder while a build is running.",
@@ -264,6 +270,11 @@ TRANSLATIONS = {
         "error_status": "Ошибка",
         "preflight_log": "Лог проверки",
         "build_log": "Лог сборки",
+        "update_available_title": "Доступно обновление",
+        "update_available_message": "Доступна версия {version}.\n\nТекущая версия: {current}\n\nУстановить сейчас?",
+        "update_installing_status": "Установка обновления...",
+        "update_started_message": "Установщик обновления запущен. Программа сейчас закроется.",
+        "update_failed_message": "Не удалось обновить программу: {error}",
         "open_file": "Открыть файл",
         "close": "Закрыть",
         "cannot_clear_temp": "Нельзя очищать temp во время сборки.",
@@ -336,6 +347,35 @@ class BuildWorker(QThread):
                 self.progress_changed.emit,
             )
             self.preflight_done.emit(result.errors, result.warnings)
+        except Exception as error:
+            self.failed.emit(str(error))
+
+
+class UpdateCheckWorker(QThread):
+    update_found = Signal(object)
+    failed = Signal(str)
+
+    def run(self):
+        try:
+            update_info = check_for_update()
+            if update_info:
+                self.update_found.emit(update_info)
+        except Exception as error:
+            self.failed.emit(str(error))
+
+
+class UpdateInstallWorker(QThread):
+    started = Signal()
+    failed = Signal(str)
+
+    def __init__(self, update_info, parent=None):
+        super().__init__(parent)
+        self.update_info = update_info
+
+    def run(self):
+        try:
+            install_update_and_restart(self.update_info)
+            self.started.emit()
         except Exception as error:
             self.failed.emit(str(error))
 
@@ -851,6 +891,8 @@ class ModernPboBuilderWindow(QMainWindow):
         super().__init__()
         self.saved_settings = load_saved_settings()
         self.worker = None
+        self.update_check_worker = None
+        self.update_install_worker = None
         self.current_log_file = None
         self.current_log_path = ""
         self.log_lines = []
@@ -869,6 +911,7 @@ class ModernPboBuilderWindow(QMainWindow):
         self.refresh_addon_list()
         self.set_status(tr_text("ready", self.current_language), "ready")
         QTimer.singleShot(0, self.sync_addons_height)
+        QTimer.singleShot(1000, self.start_update_check)
 
     def _set_icon(self):
         icon_path = self._app_icon_path()
@@ -1409,6 +1452,57 @@ class ModernPboBuilderWindow(QMainWindow):
         self.worker.build_done.connect(self.on_build_done)
         self.worker.preflight_done.connect(self.on_preflight_done)
         self.worker.failed.connect(self.on_worker_failed)
+
+    def start_update_check(self):
+        if self.update_check_worker is not None and self.update_check_worker.isRunning():
+            return
+        self.update_check_worker = UpdateCheckWorker(self)
+        self.update_check_worker.update_found.connect(self.on_update_found)
+        self.update_check_worker.failed.connect(self.on_update_check_failed)
+        self.update_check_worker.start()
+
+    def on_update_check_failed(self, message):
+        self.log(f"Update check skipped/failed: {message}")
+
+    def on_update_found(self, update_info):
+        message = tr_text(
+            "update_available_message",
+            self.current_language,
+            version=update_info.tag_name,
+            current=APP_VERSION,
+        )
+        answer = QMessageBox.question(
+            self,
+            tr_text("update_available_title", self.current_language),
+            message,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.start_update_install(update_info)
+
+    def start_update_install(self, update_info):
+        self._set_running(True, tr_text("update_installing_status", self.current_language), "building")
+        self.update_install_worker = UpdateInstallWorker(update_info, self)
+        self.update_install_worker.started.connect(self.on_update_install_started)
+        self.update_install_worker.failed.connect(self.on_update_install_failed)
+        self.update_install_worker.start()
+
+    def on_update_install_started(self):
+        QMessageBox.information(
+            self,
+            tr_text("update_available_title", self.current_language),
+            tr_text("update_started_message", self.current_language),
+        )
+        QApplication.quit()
+
+    def on_update_install_failed(self, message):
+        self._set_running(False, tr_text("error_status", self.current_language), "error")
+        QMessageBox.critical(
+            self,
+            APP_TITLE,
+            tr_text("update_failed_message", self.current_language, error=message),
+        )
 
     def _set_running(self, running, status_text, status_kind):
         self.is_building = running

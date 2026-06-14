@@ -83,6 +83,29 @@ Addons\<addon>.*.bisign
 Keys\<key>.bikey
 ```
 
+## Auto Update Releases
+
+Auto update checks GitHub Releases for `byRaiZo/PBO_Builder`.
+
+Use SemVer tags:
+
+```text
+v1.0.1
+```
+
+Attach both files to each release:
+
+```text
+PBO_Builder_byRaiZo-v1.0.1-win64.zip
+PBO_Builder_byRaiZo-v1.0.1-win64.zip.sha256
+```
+
+The zip must contain the full PyInstaller one-folder build:
+
+```text
+PBO Builder(byRaiZo)\
+```
+
 ## Notes
 
 Settings, cache, logs, and temporary signing data are stored separately from the

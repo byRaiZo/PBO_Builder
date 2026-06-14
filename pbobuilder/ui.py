@@ -14,6 +14,7 @@ from .preflight import run_preflight_for_targets
 from .system import *
 from .targets import detect_addon_targets
 from .tools import find_cfgconvert, find_dayz_binarize, find_dssignfile, find_p3d_obfuscator
+from .updater import check_for_update, install_update_and_restart
 
 class ToolTip:
     def __init__(self, widget, text, delay_ms=500):
@@ -83,6 +84,8 @@ class PboBuilderByRaiZoApp(tk.Tk):
 
         self.log_queue = queue.Queue()
         self.worker_thread = None
+        self.update_check_thread = None
+        self.update_install_thread = None
         self.is_building = False
         self.current_log_file = None
         self.current_log_path = ""
@@ -118,6 +121,7 @@ class PboBuilderByRaiZoApp(tk.Tk):
 
         self.bind("<Configure>", self.on_window_configure)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.after(1000, self.start_update_check)
 
     def set_window_icon(self):
         icon_path = resource_path(APP_ICON_FILE)
@@ -996,6 +1000,27 @@ class PboBuilderByRaiZoApp(tk.Tk):
     def thread_progress(self, current, total):
         self.log_queue.put(("progress", (current, total)))
 
+    def start_update_check(self):
+        if self.update_check_thread and self.update_check_thread.is_alive():
+            return
+        self.update_check_thread = threading.Thread(target=self._update_check_worker, daemon=True)
+        self.update_check_thread.start()
+
+    def _update_check_worker(self):
+        try:
+            update_info = check_for_update()
+            if update_info:
+                self.log_queue.put(("update_found", update_info))
+        except Exception as error:
+            self.log_queue.put(("log", f"Update check skipped/failed: {error}"))
+
+    def _update_install_worker(self, update_info):
+        try:
+            install_update_and_restart(update_info)
+            self.log_queue.put(("update_started", None))
+        except Exception as error:
+            self.log_queue.put(("update_failed", str(error)))
+
     def configure_log_tags(self):
         self.log_text.tag_configure("log_error", foreground=GRAPHITE_ERROR)
         self.log_text.tag_configure("log_warning", foreground=GRAPHITE_WARNING)
@@ -1092,6 +1117,27 @@ class PboBuilderByRaiZoApp(tk.Tk):
                     self.set_status("Error", "error")
                     self.close_current_log_file()
                     messagebox.showerror(APP_TITLE, payload)
+                elif item_type == "update_found":
+                    update_info = payload
+                    message = (
+                        f"Доступна версия {update_info.tag_name}.\n\n"
+                        f"Текущая версия: {APP_VERSION}\n\n"
+                        "Установить сейчас?"
+                    )
+                    if messagebox.askyesno("Доступно обновление", message):
+                        self.set_status("Installing update...", "building")
+                        self.update_install_thread = threading.Thread(
+                            target=self._update_install_worker,
+                            args=(update_info,),
+                            daemon=True,
+                        )
+                        self.update_install_thread.start()
+                elif item_type == "update_started":
+                    messagebox.showinfo(APP_TITLE, "Установщик обновления запущен. Программа сейчас закроется.")
+                    self.on_close()
+                elif item_type == "update_failed":
+                    self.set_status("Error", "error")
+                    messagebox.showerror(APP_TITLE, f"Не удалось обновить программу: {payload}")
         except queue.Empty:
             flush_log_batch()
 
