@@ -1,8 +1,10 @@
 import copy
 import html
 import os
+import queue
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, QThread, QTimer, Signal
@@ -994,6 +996,8 @@ class ModernPboBuilderWindow(QMainWindow):
         self.worker = None
         self.update_check_worker = None
         self.update_install_worker = None
+        self.update_install_thread = None
+        self.update_install_queue = None
         self.current_log_file = None
         self.current_log_path = ""
         self.log_lines = []
@@ -1595,11 +1599,44 @@ class ModernPboBuilderWindow(QMainWindow):
     def start_update_install(self, update_info):
         self._set_running(True, tr_text("update_installing_status", self.current_language), "building")
         self._show_update_progress_dialog()
-        self.update_install_worker = UpdateInstallWorker(update_info, self)
-        self.update_install_worker.progress_changed.connect(self.on_update_download_progress)
-        self.update_install_worker.started.connect(self.on_update_install_started)
-        self.update_install_worker.failed.connect(self.on_update_install_failed)
-        self.update_install_worker.start()
+        self.update_install_queue = queue.Queue()
+        self.update_install_thread = threading.Thread(
+            target=self._update_install_thread_main,
+            args=(update_info,),
+            daemon=True,
+        )
+        self.update_install_thread.start()
+        QTimer.singleShot(100, self._poll_update_install_queue)
+
+    def _update_install_thread_main(self, update_info):
+        def progress_callback(current, total, label):
+            self.update_install_queue.put(("progress", (current, total, label)))
+
+        try:
+            install_update_and_restart(update_info, progress_callback)
+            self.update_install_queue.put(("started", None))
+        except Exception as error:
+            self.update_install_queue.put(("failed", str(error)))
+
+    def _poll_update_install_queue(self):
+        if not self.update_install_queue:
+            return
+        try:
+            while True:
+                item_type, payload = self.update_install_queue.get_nowait()
+                if item_type == "progress":
+                    current, total, label = payload
+                    self.on_update_download_progress(current, total, label)
+                elif item_type == "started":
+                    self.on_update_install_started()
+                    return
+                elif item_type == "failed":
+                    self.on_update_install_failed(payload)
+                    return
+        except queue.Empty:
+            pass
+        if self.update_install_thread and self.update_install_thread.is_alive():
+            QTimer.singleShot(100, self._poll_update_install_queue)
 
     def on_update_download_progress(self, current, total, label):
         if not self.update_progress_dialog:
