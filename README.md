@@ -87,13 +87,15 @@ Keys\<key>.bikey
 
 Auto update checks GitHub Releases for `byRaiZo/PBO_Builder`.
 
-Use SemVer tags:
+Create a SemVer tag and push it:
 
-```text
-v1.0.1
+```powershell
+git tag v1.0.1
+git push origin main --tags
 ```
 
-Attach both files to each release:
+GitHub Actions will build the PyInstaller one-folder app, create both assets,
+and publish a GitHub Release:
 
 ```text
 PBO_Builder_byRaiZo-v1.0.1-win64.zip
