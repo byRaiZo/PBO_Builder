@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 APP_TITLE = "PBO Builder(byRaiZo)"
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 APP_AUTHOR = "RaiZo"
 APP_LICENSE_NAME = "Freeware - Proprietary / All Rights Reserved"
 APP_LICENSE_TEXT = """PBO Builder(byRaiZo) License

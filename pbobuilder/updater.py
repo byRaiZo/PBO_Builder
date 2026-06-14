@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -149,6 +150,19 @@ def updates_dir():
     return path
 
 
+def clear_updates_dir():
+    path = updates_dir()
+    for child in path.iterdir():
+        try:
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+        except OSError:
+            pass
+    return path
+
+
 def download_file(url, destination, progress_callback=None, label=""):
     request = urllib.request.Request(
         url,
@@ -201,7 +215,7 @@ def verify_sha256(path, expected_sha256):
 
 
 def download_update_package(update_info, progress_callback=None):
-    package_dir = updates_dir() / f"v{update_info.version}_{int(time.time())}"
+    package_dir = clear_updates_dir() / f"v{update_info.version}_{int(time.time())}"
     zip_path = package_dir / update_info.zip_name
     sha_path = package_dir / update_info.sha256_name
     download_file(update_info.zip_url, zip_path, progress_callback, update_info.zip_name)

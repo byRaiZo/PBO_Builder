@@ -160,6 +160,8 @@ TRANSLATIONS = {
         "build_log": "Build log",
         "update_available_title": "Update available",
         "update_available_message": "Version {version} is available.\n\nCurrent version: {current}\n\nInstall now?",
+        "update_button_install": "Update",
+        "update_button_later": "Later",
         "update_progress_title": "Installing update",
         "update_progress_message": "Downloading update...",
         "update_replacing_message": "Download complete. Replacing files...",
@@ -279,6 +281,8 @@ TRANSLATIONS = {
         "build_log": "Лог сборки",
         "update_available_title": "Доступно обновление",
         "update_available_message": "Доступна версия {version}.\n\nТекущая версия: {current}\n\nУстановить сейчас?",
+        "update_button_install": "Обновить",
+        "update_button_later": "Позже",
         "update_progress_title": "Установка обновления",
         "update_progress_message": "Скачивание обновления...",
         "update_replacing_message": "Скачивание завершено. Замена файлов...",
@@ -449,7 +453,7 @@ class UpdateProgressDialog(QDialog):
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.progress.setTextVisible(True)
+        self.progress.setTextVisible(False)
         layout.addWidget(self.progress)
 
     def set_progress(self, current, total, label=""):
@@ -1571,14 +1575,21 @@ class ModernPboBuilderWindow(QMainWindow):
             version=update_info.tag_name,
             current=APP_VERSION,
         )
-        answer = QMessageBox.question(
-            self,
-            tr_text("update_available_title", self.current_language),
-            message,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Icon.Question)
+        dialog.setWindowTitle(tr_text("update_available_title", self.current_language))
+        dialog.setText(message)
+        install_button = dialog.addButton(
+            tr_text("update_button_install", self.current_language),
+            QMessageBox.ButtonRole.AcceptRole,
         )
-        if answer == QMessageBox.StandardButton.Yes:
+        dialog.addButton(
+            tr_text("update_button_later", self.current_language),
+            QMessageBox.ButtonRole.RejectRole,
+        )
+        dialog.setDefaultButton(install_button)
+        dialog.exec()
+        if dialog.clickedButton() == install_button:
             self.start_update_install(update_info)
 
     def start_update_install(self, update_info):
