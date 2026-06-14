@@ -1602,7 +1602,11 @@ class ModernPboBuilderWindow(QMainWindow):
     def on_update_install_started(self):
         if self.update_progress_dialog:
             self.update_progress_dialog.set_message(tr_text("update_replacing_message", self.current_language))
-        QTimer.singleShot(250, QApplication.quit)
+        QTimer.singleShot(250, self._quit_for_update)
+
+    def _quit_for_update(self):
+        self._close_update_progress_dialog()
+        QApplication.quit()
 
     def on_update_install_failed(self, message):
         self._close_update_progress_dialog()
