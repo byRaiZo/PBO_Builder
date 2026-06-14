@@ -29,19 +29,24 @@ def normalize_working_dir(project_root):
     return value
 
 def run_logged_subprocess(cmd, cwd, log):
-    result = subprocess.run(
+    output_lines = []
+    process = subprocess.Popen(
         cmd,
         cwd=cwd if cwd and os.path.isdir(cwd) else None,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        bufsize=1,
         creationflags=get_subprocess_creationflags(),
         startupinfo=get_hidden_startupinfo(),
     )
-    if result.stdout:
-        for line in result.stdout.splitlines():
+    if process.stdout:
+        for line in process.stdout:
+            line = line.rstrip("\r\n")
+            output_lines.append(line)
             log(line)
-    return result
+    returncode = process.wait()
+    return subprocess.CompletedProcess(cmd, returncode, "\n".join(output_lines))
 
 def same_path(left, right):
     try:

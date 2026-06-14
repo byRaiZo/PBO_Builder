@@ -35,6 +35,37 @@ Legacy Tkinter UI fallback:
 run_pbo_builder_byraizo_legacy_tk.bat
 ```
 
+## Console / Context Menu
+
+PBO Manager style command:
+
+```powershell
+"PBO Builder(byRaiZo).exe" -pack "{path}" "F:\Steam\steamapps\common\DayZServer\@RaiZoClient_Main\Addons\{name}.pbo"
+```
+
+Server output example:
+
+```powershell
+"PBO Builder(byRaiZo).exe" -pack "{path}" "F:\Steam\steamapps\common\DayZServer\@RaiZoServer_Main\Addons\{name}.pbo"
+```
+
+CLI defaults:
+
+- Binarize P3D: enabled
+- CPP/RVMAT to BIN: enabled
+- Force rebuild: enabled
+- Protect P3D: disabled
+- Sign PBO: disabled
+- Preflight: disabled
+
+Enable signing:
+
+```powershell
+"PBO Builder(byRaiZo).exe" -pack "{path}" "F:\Steam\steamapps\common\DayZServer\@RaiZoClient_Main\Addons\{name}.pbo" -signPBO
+```
+
+`-singPBO` is also accepted for compatibility with mistyped context menu entries.
+
 ## Source Layout
 
 ```text
