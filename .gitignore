@@ -4,6 +4,7 @@ __pycache__/
 
 build/
 dist/
+dist_release/
 
 .venv/
 venv/
@@ -12,3 +13,5 @@ env/
 *.log
 *.tmp
 *.rar
+*.zip
+*.sha256
