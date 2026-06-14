@@ -149,10 +149,28 @@ def updates_dir():
     return path
 
 
-def download_file(url, destination):
-    data = http_get_bytes(url)
+def download_file(url, destination, progress_callback=None, label=""):
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": f"{APP_TITLE}/{APP_VERSION}",
+        },
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(data)
+    with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
+        total = int(response.headers.get("Content-Length") or 0)
+        downloaded = 0
+        with open(destination, "wb") as file:
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                file.write(chunk)
+                downloaded += len(chunk)
+                if progress_callback:
+                    progress_callback(downloaded, total, label)
+    if progress_callback:
+        progress_callback(destination.stat().st_size, destination.stat().st_size, label)
     return destination
 
 
@@ -182,11 +200,11 @@ def verify_sha256(path, expected_sha256):
     return True
 
 
-def download_update_package(update_info):
+def download_update_package(update_info, progress_callback=None):
     package_dir = updates_dir() / f"v{update_info.version}_{int(time.time())}"
     zip_path = package_dir / update_info.zip_name
     sha_path = package_dir / update_info.sha256_name
-    download_file(update_info.zip_url, zip_path)
+    download_file(update_info.zip_url, zip_path, progress_callback, update_info.zip_name)
     download_file(update_info.sha256_url, sha_path)
     expected_sha = parse_sha256_text(sha_path.read_text(encoding="utf-8", errors="ignore"))
     verify_sha256(zip_path, expected_sha)
@@ -207,14 +225,34 @@ function Write-UpdateLog($Message) {
     $line = "$(Get-Date -Format o) $Message"
     Add-Content -LiteralPath $LogPath -Value $line
 }
+function Invoke-UpdateStep($Name, [scriptblock]$Step) {
+    $lastError = $null
+    for ($attempt = 1; $attempt -le 60; $attempt++) {
+        try {
+            & $Step
+            Write-UpdateLog "$Name completed."
+            return
+        } catch {
+            $lastError = $_.Exception.Message
+            Write-UpdateLog "$Name attempt $attempt failed: $lastError"
+            Start-Sleep -Seconds 1
+        }
+    }
+    throw "$Name failed after retries: $lastError"
+}
 try {
     Write-UpdateLog "Updater started."
-    try {
-        Wait-Process -Id $TargetPid -Timeout 60 -ErrorAction SilentlyContinue
-    } catch {
-        Write-UpdateLog "Wait-Process warning: $($_.Exception.Message)"
+    for ($attempt = 1; $attempt -le 180; $attempt++) {
+        $process = Get-Process -Id $TargetPid -ErrorAction SilentlyContinue
+        if (-not $process) {
+            Write-UpdateLog "Target process exited."
+            break
+        }
+        Start-Sleep -Seconds 1
     }
-    Start-Sleep -Seconds 1
+    if (Get-Process -Id $TargetPid -ErrorAction SilentlyContinue) {
+        throw "Target process did not exit in time."
+    }
 
     $appParent = Split-Path -Parent $AppDir
     $appName = Split-Path -Leaf $AppDir
@@ -238,8 +276,8 @@ try {
         throw "Updated executable was not found in archive: $newExe"
     }
 
-    Rename-Item -LiteralPath $AppDir -NewName (Split-Path -Leaf $backupDir)
-    Move-Item -LiteralPath $newAppDir -Destination $AppDir
+    Invoke-UpdateStep "Backup old application" { Rename-Item -LiteralPath $AppDir -NewName (Split-Path -Leaf $backupDir) }
+    Invoke-UpdateStep "Move new application" { Move-Item -LiteralPath $newAppDir -Destination $AppDir }
     Write-UpdateLog "Application folder replaced."
 
     $finalExe = Join-Path $AppDir $exeName
@@ -278,8 +316,18 @@ def launch_update_installer(zip_path, app_dir=None, exe_path=None, pid=None):
     work_dir = updates_dir() / f"installer_{int(time.time())}"
     script_path = create_updater_script(work_dir / "update.ps1")
     log_path = work_dir / "update.log"
-    cmd = [
+    log_path.write_text(f"{time.strftime('%Y-%m-%d %H:%M:%S')} Launching updater.\n", encoding="utf-8")
+    powershell_exe = os.path.join(
+        os.environ.get("SystemRoot", r"C:\Windows"),
+        "System32",
+        "WindowsPowerShell",
+        "v1.0",
         "powershell.exe",
+    )
+    if not os.path.isfile(powershell_exe):
+        powershell_exe = "powershell.exe"
+    cmd = [
+        powershell_exe,
         "-NoProfile",
         "-ExecutionPolicy",
         "Bypass",
@@ -296,15 +344,17 @@ def launch_update_installer(zip_path, app_dir=None, exe_path=None, pid=None):
         "-LogPath",
         str(log_path),
     ]
-    subprocess.Popen(
+    process = subprocess.Popen(
         cmd,
         cwd=str(work_dir),
         creationflags=get_subprocess_creationflags(),
         close_fds=True,
     )
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        log_file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} Updater process started: {process.pid}\n")
     return script_path
 
 
-def install_update_and_restart(update_info):
-    zip_path = download_update_package(update_info)
+def install_update_and_restart(update_info, progress_callback=None):
+    zip_path = download_update_package(update_info, progress_callback)
     return launch_update_installer(zip_path)

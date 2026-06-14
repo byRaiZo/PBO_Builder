@@ -160,6 +160,9 @@ TRANSLATIONS = {
         "build_log": "Build log",
         "update_available_title": "Update available",
         "update_available_message": "Version {version} is available.\n\nCurrent version: {current}\n\nInstall now?",
+        "update_progress_title": "Installing update",
+        "update_progress_message": "Downloading update...",
+        "update_replacing_message": "Download complete. Replacing files...",
         "update_installing_status": "Installing update...",
         "update_started_message": "The update installer has started. The app will close now.",
         "update_failed_message": "Update failed: {error}",
@@ -276,6 +279,9 @@ TRANSLATIONS = {
         "build_log": "Лог сборки",
         "update_available_title": "Доступно обновление",
         "update_available_message": "Доступна версия {version}.\n\nТекущая версия: {current}\n\nУстановить сейчас?",
+        "update_progress_title": "Установка обновления",
+        "update_progress_message": "Скачивание обновления...",
+        "update_replacing_message": "Скачивание завершено. Замена файлов...",
         "update_installing_status": "Установка обновления...",
         "update_started_message": "Установщик обновления запущен. Программа сейчас закроется.",
         "update_failed_message": "Не удалось обновить программу: {error}",
@@ -369,6 +375,7 @@ class UpdateCheckWorker(QThread):
 
 
 class UpdateInstallWorker(QThread):
+    progress_changed = Signal(int, int, str)
     started = Signal()
     failed = Signal(str)
 
@@ -378,7 +385,7 @@ class UpdateInstallWorker(QThread):
 
     def run(self):
         try:
-            install_update_and_restart(self.update_info)
+            install_update_and_restart(self.update_info, self.progress_changed.emit)
             self.started.emit()
         except Exception as error:
             self.failed.emit(str(error))
@@ -407,6 +414,57 @@ class BuildProgressDialog(QDialog):
         progress.setRange(0, 0)
         progress.setTextVisible(False)
         layout.addWidget(progress)
+
+    def closeEvent(self, event):
+        if self._allow_close:
+            super().closeEvent(event)
+            return
+        event.ignore()
+
+    def finish(self):
+        self._allow_close = True
+        self.accept()
+
+
+class UpdateProgressDialog(QDialog):
+    def __init__(self, parent=None, language=DEFAULT_LANGUAGE):
+        super().__init__(parent)
+        self._allow_close = False
+        self.setWindowTitle(tr_text("update_progress_title", language))
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+        self.setStyleSheet(QT_STYLE)
+        self.setFixedSize(420, 140)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(10)
+
+        self.label = QLabel(tr_text("update_progress_message", language))
+        self.label.setObjectName("DialogTitle")
+        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setWordWrap(True)
+        layout.addWidget(self.label)
+
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self.progress.setTextVisible(True)
+        layout.addWidget(self.progress)
+
+    def set_progress(self, current, total, label=""):
+        if total > 0:
+            percent = min(100, int((current / total) * 100))
+            self.progress.setRange(0, 100)
+            self.progress.setValue(percent)
+        else:
+            self.progress.setRange(0, 0)
+        if label:
+            self.label.setText(label)
+
+    def set_message(self, message):
+        self.label.setText(message)
+        self.progress.setRange(0, 0)
 
     def closeEvent(self, event):
         if self._allow_close:
@@ -938,6 +996,7 @@ class ModernPboBuilderWindow(QMainWindow):
         self.current_addon_targets = []
         self.is_building = False
         self.build_progress_dialog = None
+        self.update_progress_dialog = None
         self.current_language = normalize_language(self.saved_settings.get("language", DEFAULT_LANGUAGE))
 
         self.setWindowTitle(APP_TITLE)
@@ -1524,20 +1583,29 @@ class ModernPboBuilderWindow(QMainWindow):
 
     def start_update_install(self, update_info):
         self._set_running(True, tr_text("update_installing_status", self.current_language), "building")
+        self._show_update_progress_dialog()
         self.update_install_worker = UpdateInstallWorker(update_info, self)
+        self.update_install_worker.progress_changed.connect(self.on_update_download_progress)
         self.update_install_worker.started.connect(self.on_update_install_started)
         self.update_install_worker.failed.connect(self.on_update_install_failed)
         self.update_install_worker.start()
 
+    def on_update_download_progress(self, current, total, label):
+        if not self.update_progress_dialog:
+            return
+        display_label = tr_text("update_progress_message", self.current_language)
+        if total > 0:
+            percent = min(100, int((current / total) * 100))
+            display_label = f"{display_label} {percent}%"
+        self.update_progress_dialog.set_progress(current, total, display_label)
+
     def on_update_install_started(self):
-        QMessageBox.information(
-            self,
-            tr_text("update_available_title", self.current_language),
-            tr_text("update_started_message", self.current_language),
-        )
-        QApplication.quit()
+        if self.update_progress_dialog:
+            self.update_progress_dialog.set_message(tr_text("update_replacing_message", self.current_language))
+        QTimer.singleShot(250, QApplication.quit)
 
     def on_update_install_failed(self, message):
+        self._close_update_progress_dialog()
         self._set_running(False, tr_text("error_status", self.current_language), "error")
         QMessageBox.critical(
             self,
@@ -1601,6 +1669,18 @@ class ModernPboBuilderWindow(QMainWindow):
         self.build_progress_dialog.finish()
         self.build_progress_dialog.deleteLater()
         self.build_progress_dialog = None
+
+    def _show_update_progress_dialog(self):
+        self._close_update_progress_dialog()
+        self.update_progress_dialog = UpdateProgressDialog(self, self.current_language)
+        self.update_progress_dialog.show()
+
+    def _close_update_progress_dialog(self):
+        if not self.update_progress_dialog:
+            return
+        self.update_progress_dialog.finish()
+        self.update_progress_dialog.deleteLater()
+        self.update_progress_dialog = None
 
     def _open_log(self, path):
         self.close_current_log_file()
