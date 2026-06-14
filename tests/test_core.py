@@ -98,6 +98,28 @@ class PboPackTests(unittest.TestCase):
             self.assertGreater(output.stat().st_size, 0)
             self.assertEqual(read_packed_pbo_prefix(str(output)), r"my\addon")
 
+    def test_pack_pbo_keeps_cfg_when_pack_only_excludes_disabled(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir, "source")
+            output = Path(temp_dir, "out", "addon.pbo")
+            source.mkdir()
+            Path(source, "custom_model.cfg").write_text("class CfgModels {};", encoding="utf-8")
+
+            pack_pbo(str(source), str(output), "", lambda _message: None, exclude_pack_only=False)
+
+            self.assertIn(b"custom_model.cfg\x00", output.read_bytes())
+
+    def test_pack_pbo_skips_cfg_when_pack_only_excludes_enabled(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir, "source")
+            output = Path(temp_dir, "out", "addon.pbo")
+            source.mkdir()
+            Path(source, "custom_model.cfg").write_text("class CfgModels {};", encoding="utf-8")
+
+            pack_pbo(str(source), str(output), "", lambda _message: None, exclude_pack_only=True)
+
+            self.assertNotIn(b"custom_model.cfg\x00", output.read_bytes())
+
 
 if __name__ == "__main__":
     unittest.main()

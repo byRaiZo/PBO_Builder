@@ -51,20 +51,33 @@ Server output example:
 
 CLI defaults:
 
-- Binarize P3D: enabled
-- CPP/RVMAT to BIN: enabled
-- Force rebuild: enabled
+- Binarize P3D: disabled
+- CPP/RVMAT to BIN: disabled
+- Force rebuild: disabled
 - Protect P3D: disabled
 - Sign PBO: disabled
 - Preflight: disabled
 
+Enable the usual release pipeline:
+
+```powershell
+"PBO Builder(byRaiZo).exe" -pack "{path}" "F:\Steam\steamapps\common\DayZServer\@RaiZoClient_Main\Addons\{name}.pbo" -binarizeP3D -cppRvmatToBin -forceRebuild
+```
+
 Enable signing:
 
 ```powershell
-"PBO Builder(byRaiZo).exe" -pack "{path}" "F:\Steam\steamapps\common\DayZServer\@RaiZoClient_Main\Addons\{name}.pbo" -signPBO
+"PBO Builder(byRaiZo).exe" -pack "{path}" "F:\Steam\steamapps\common\DayZServer\@RaiZoClient_Main\Addons\{name}.pbo" -binarizeP3D -cppRvmatToBin -forceRebuild -signPBO
 ```
 
-`-singPBO` is also accepted for compatibility with mistyped context menu entries.
+Available option flags:
+
+- `-binarizeP3D`
+- `-cppRvmatToBin`
+- `-forceRebuild`
+- `-protectP3D`
+- `-signPBO`
+- `-preflight`
 
 ## Source Layout
 

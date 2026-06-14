@@ -400,7 +400,7 @@ def verify_published_output(pbo_path, sign_pbos, log):
 
     log("Published output verification OK.")
 
-def pack_pbo(source_dir, output_path, prefix, log, extra_patterns=None):
+def pack_pbo(source_dir, output_path, prefix, log, extra_patterns=None, exclude_pack_only=True):
     source_dir = os.path.normpath(source_dir)
     output_path = os.path.normpath(output_path)
     if not os.path.isdir(source_dir):
@@ -412,7 +412,7 @@ def pack_pbo(source_dir, output_path, prefix, log, extra_patterns=None):
     for root, dirs, filenames in os.walk(source_dir):
         dirs[:] = [d for d in dirs if not should_skip_dir(d, extra_patterns)]
         for fname in filenames:
-            if should_skip_pack_file(fname, extra_patterns):
+            if should_skip_pack_file(fname, extra_patterns, exclude_pack_only):
                 continue
             full = os.path.join(root, fname)
             rel = os.path.relpath(full, source_dir).replace(os.sep, WIN_SEP)

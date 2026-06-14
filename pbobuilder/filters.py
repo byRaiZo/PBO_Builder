@@ -52,10 +52,13 @@ def should_skip_file(filename, extra_patterns=None):
         return True
     return False
 
-def should_skip_pack_file(filename, extra_patterns=None):
+def should_skip_pack_file(filename, extra_patterns=None, exclude_pack_only=True):
     name = filename.lower()
-    if name in PACK_ONLY_EXCLUDE_FILES:
-        return True
+    if exclude_pack_only:
+        if name in PACK_ONLY_EXCLUDE_FILES:
+            return True
+        if os.path.splitext(name)[1].lower() in PACK_ONLY_EXCLUDE_EXTENSIONS:
+            return True
     return should_skip_file(filename, extra_patterns)
 
 def parse_exclude_patterns(raw_patterns):

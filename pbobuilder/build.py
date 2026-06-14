@@ -302,7 +302,14 @@ def build_all(settings, log, progress_callback):
 
             log(f"PBO name:   {os.path.basename(job['output_pbo'])}")
             log(f"PBO prefix: {job['prefix']}")
-            pack_pbo(job["pack_source"], job["temp_output_pbo"], job["prefix"], log, exclude_pattern_list)
+            pack_pbo(
+                job["pack_source"],
+                job["temp_output_pbo"],
+                job["prefix"],
+                log,
+                exclude_pattern_list,
+                exclude_pack_only=use_binarize,
+            )
             verify_packed_pbo(job["temp_output_pbo"], job["prefix"], log)
             if job["sign_output"]:
                 wait_for_file_ready(job["temp_output_pbo"], log)

@@ -17,17 +17,39 @@ class CliTests(unittest.TestCase):
         self.assertEqual(output_root, r"F:\Steam\steamapps\common\DayZServer\@RaiZoClient_Main")
         self.assertEqual(pbo_name, "RZ_Weapons")
 
-    def test_default_cli_build_options_match_context_menu_request(self):
+    def test_default_cli_build_options_are_disabled(self):
         parser = build_parser()
         args = parser.parse_args(["-pack", r"F:\Mods\RZ_Weapons", r"F:\Out\@Client\Addons\RZ_Weapons.pbo"])
+        settings = build_cli_settings(args, saved_settings={})
+
+        self.assertFalse(settings["use_binarize"])
+        self.assertFalse(settings["convert_config"])
+        self.assertFalse(settings["force_rebuild"])
+        self.assertFalse(settings["sign_pbos"])
+        self.assertFalse(settings["protect_p3d"])
+        self.assertFalse(settings["preflight_before_build"])
+
+    def test_cli_flags_enable_build_options(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "-pack",
+                r"F:\Mods\RZ_Weapons",
+                r"F:\Out\@Client\Addons\RZ_Weapons.pbo",
+                "-binarizeP3D",
+                "-cppRvmatToBin",
+                "-forceRebuild",
+                "-protectP3D",
+                "-preflight",
+            ]
+        )
         settings = build_cli_settings(args, saved_settings={})
 
         self.assertTrue(settings["use_binarize"])
         self.assertTrue(settings["convert_config"])
         self.assertTrue(settings["force_rebuild"])
-        self.assertFalse(settings["sign_pbos"])
-        self.assertFalse(settings["protect_p3d"])
-        self.assertFalse(settings["preflight_before_build"])
+        self.assertTrue(settings["protect_p3d"])
+        self.assertTrue(settings["preflight_before_build"])
 
     def test_pack_output_overrides_saved_server_root(self):
         parser = build_parser()
@@ -40,7 +62,7 @@ class CliTests(unittest.TestCase):
     def test_sign_flags_enable_pbo_signing(self):
         parser = build_parser()
 
-        for flag in ("-signPBO", "-singPBO", "--sign-pbo"):
+        for flag in ("-signPBO", "--sign-pbo"):
             with self.subTest(flag=flag):
                 args = parser.parse_args(
                     ["-pack", r"F:\Mods\RZ_Weapons", r"F:\Out\@Client\Addons\RZ_Weapons.pbo", flag]

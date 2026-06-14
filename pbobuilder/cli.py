@@ -28,10 +28,17 @@ CLI_MARKERS = {
     "--private-key",
     "--p3d-obfuscator-exe",
     "--max-processes",
+    "-binarizep3d",
+    "--binarize-p3d",
+    "-cpprvmattobin",
+    "--cpp-rvmat-to-bin",
+    "-forcerebuild",
+    "--force-rebuild",
     "-signpbo",
-    "-singpbo",
     "--sign-pbo",
+    "-protectp3d",
     "--protect-p3d",
+    "-preflight",
     "--preflight",
     "--no-binarize",
     "--no-convert",
@@ -90,7 +97,7 @@ def open_cli_console():
     return True
 
 
-def wait_for_enter_on_error(created_console):
+def wait_for_enter(created_console):
     if not created_console:
         return
     try:
@@ -123,20 +130,28 @@ def build_parser():
     parser.add_argument("--private-key", help="Path to .biprivatekey.")
     parser.add_argument("--p3d-obfuscator-exe", help="Path to P3DObfuscator.exe.")
     parser.add_argument("--max-processes", type=int, help="Binarize max processes.")
+    parser.add_argument("-binarizeP3D", "-binarizep3d", "--binarize-p3d", dest="binarize_p3d", action="store_true")
+    parser.add_argument(
+        "-cppRvmatToBin",
+        "-cpprvmattobin",
+        "--cpp-rvmat-to-bin",
+        dest="cpp_rvmat_to_bin",
+        action="store_true",
+    )
+    parser.add_argument("-forceRebuild", "-forcerebuild", "--force-rebuild", dest="force_rebuild", action="store_true")
     parser.add_argument(
         "-signPBO",
         "-signpbo",
-        "-singPBO",
-        "-singpbo",
         "--sign-pbo",
         dest="sign_pbos",
         action="store_true",
     )
-    parser.add_argument("--protect-p3d", action="store_true")
-    parser.add_argument("--preflight", action="store_true")
-    parser.add_argument("--no-binarize", action="store_true")
-    parser.add_argument("--no-convert", action="store_true")
-    parser.add_argument("--no-force-rebuild", action="store_true")
+    parser.add_argument("-protectP3D", "-protectp3d", "--protect-p3d", dest="protect_p3d", action="store_true")
+    parser.add_argument("-preflight", "--preflight", action="store_true")
+    parser.add_argument("--no-binarize", action="store_false", dest="binarize_p3d", help=argparse.SUPPRESS)
+    parser.add_argument("--no-convert", action="store_false", dest="cpp_rvmat_to_bin", help=argparse.SUPPRESS)
+    parser.add_argument("--no-force-rebuild", action="store_false", dest="force_rebuild", help=argparse.SUPPRESS)
+    parser.set_defaults(binarize_p3d=False, cpp_rvmat_to_bin=False, force_rebuild=False)
     return parser
 
 
@@ -177,8 +192,8 @@ def build_cli_settings(args, saved_settings=None):
         "output_root_dir": output_root,
         "output_server_root_dir": output_server_root,
         "temp_dir": temp_dir,
-        "use_binarize": not args.no_binarize,
-        "convert_config": not args.no_convert,
+        "use_binarize": bool(args.binarize_p3d),
+        "convert_config": bool(args.cpp_rvmat_to_bin),
         "sign_pbos": bool(args.sign_pbos),
         "protect_p3d": bool(args.protect_p3d),
         "binarize_exe": first_value(args.binarize_exe, saved.get("binarize_exe"), find_dayz_binarize()),
@@ -199,7 +214,7 @@ def build_cli_settings(args, saved_settings=None):
             get_default_max_processes(),
         ),
         "selected_addons": selected_addons,
-        "force_rebuild": not args.no_force_rebuild,
+        "force_rebuild": bool(args.force_rebuild),
         "preflight_before_build": bool(args.preflight),
         "log_file": str(create_build_log_path()),
     }
@@ -230,13 +245,17 @@ def run_cli(argv=None):
         build_all(settings, log, progress)
         log("CLI build completed.")
         return 0
+    except SystemExit as exit_error:
+        exit_code = exit_error.code if isinstance(exit_error.code, int) else 1
+        wait_for_enter(created_console)
+        return exit_code
     except BuildError as error:
         message = f"ERROR: {error}"
         print(message, file=sys.stderr)
         if log_file is not None:
             log_file.write(message + "\n")
             log_file.flush()
-        wait_for_enter_on_error(created_console)
+        wait_for_enter(created_console)
         return 1
     except Exception as error:
         message = f"ERROR: Unexpected CLI failure: {error}"
@@ -244,7 +263,7 @@ def run_cli(argv=None):
         if log_file is not None:
             log_file.write(message + "\n")
             log_file.flush()
-        wait_for_enter_on_error(created_console)
+        wait_for_enter(created_console)
         return 1
     finally:
         if log_file is not None:
